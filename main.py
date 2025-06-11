@@ -8,43 +8,23 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
+from architectures.mlp import MLP
+import time
 
 # Enable Korean fonts in matplotlib on MacOS
 rc("font", family="AppleGothic")
 plt.rcParams["axes.unicode_minus"] = False
 
 
-class MLP(nn.Module):
-    def __init__(self, n_input: int, n_classes: int, n_h: int = 128, n_hl: int = 2):
-        super().__init__()
-        self.init_kwargs = {}
-        args = inspect.getfullargspec(self.__init__)
-        for k, v in zip(args.annotations.keys(), args.args[1:]):
-            self.init_kwargs[k] = locals()[k]
+def timeit(func):
+    def wrapper(*args, **kwargs):
+        t1 = time.perf_counter()
+        result = func(*args, **kwargs)
+        t2 = time.perf_counter()
+        print(f"Function \"{func.__name__}\" execution time: {t2-t1:.5f}s")
+        return result
 
-        self.n_input = n_input
-        self.n_h = n_h
-        self.n_hl = n_hl
-        self.n_classes = n_classes
-
-        self.input_layer = nn.Linear(self.n_input, self.n_h)
-        self.output_layer = nn.Linear(self.n_h, self.n_classes)
-        self.hidden_layers = nn.ModuleList()
-        for _ in range(self.n_hl - 1):
-            self.hidden_layers.append(nn.Linear(self.n_h, self.n_h))
-
-    def forward(self, x):
-        h = F.relu(self.input_layer(x))
-        for l in self.hidden_layers:
-            h = F.relu(l(h))
-        out = F.softmax(self.output_layer(h), dim=-1)
-        return out
-
-
-# class ResConvBlock(nn.Module):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.conv1 = nn.Conv2d()
+    return wrapper
 
 
 def load_img(img_path: str):
@@ -79,7 +59,7 @@ def gen_labels(names: list):
 
 
 @torch.no_grad()
-def standardize_data(tensor: torch.tensor):
+def standardize_data(tensor: torch.Tensor):
     # (N,H,W,C) -> (1,H,W,C)
     std, mu = torch.std_mean(tensor, dim=0, keepdim=True)
     standardized = (tensor - mu) / std
@@ -104,7 +84,7 @@ def load_model(path: str):
     matched_dict = model_dict["matched_dict"]
     return model, matched_dict
 
-
+@timeit
 def train():
     # Load data
     img_dirs = glob.glob("vein_dataset/train/**/*.jpg", recursive=True)
@@ -122,7 +102,7 @@ def train():
     # data_y, mu_y, std_y = standardize_data(data_y)
 
     # Hyperparameters
-    n_epochs = 20
+    n_epochs = 1
     n_h = 128
     n_hl = 2
     batch_size = 4
@@ -197,7 +177,8 @@ def eval():
     model, matched_dict = load_model("model/test_mlp.pt")
     in_imgs = []
     out_probs = []
-    img_paths = glob.glob("vein_dataset/test/**/*.jpg")
+    # img_paths = glob.glob("vein_dataset/test/**/*.jpg")
+    img_paths = glob.glob("250501/**/*.jpg")
     for img_path in img_paths:
         in_img = load_img(img_path)
         out_prob = model(in_img)
@@ -229,11 +210,12 @@ def eval():
             bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
         )
         fig.tight_layout()
-        fig.savefig(f"eval/test_{i+1:02d}.png", dpi=300)
+        fig.savefig(f"eval/250501_test_{i+1:02d}.png", dpi=300)
+        plt.close(fig)
         pass
 
 
 if __name__ == "__main__":
     device = torch.device("mps")
-    # train()
+    train()
     eval()

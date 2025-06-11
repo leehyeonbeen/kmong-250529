@@ -1,5 +1,10 @@
 *.zip
-data/**/*
+references/*
+data/*
+250501/*
+eval/*
 .DS_Store
 **/*/.DS_Store
 **/*/*.pt
+__pycache__/**/*/
+**/*/__pycache__/*
